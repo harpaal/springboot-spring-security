@@ -1,5 +1,6 @@
 package com.hpst;
 
+import java.io.IOException;
 import java.security.Principal;
 import java.util.Arrays;
 import java.util.Collection;
@@ -9,11 +10,18 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
+import org.springframework.http.HttpRequest;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
+import org.springframework.security.config.annotation.method.configuration.EnableGlobalMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.builders.WebSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -26,8 +34,9 @@ import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.NoOpPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.provisioning.InMemoryUserDetailsManager;
-import org.springframework.stereotype.Component;
 import org.springframework.stereotype.Service;
+import org.springframework.web.bind.annotation.ControllerAdvice;
+import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -72,18 +81,11 @@ class SecurityConfig extends WebSecurityConfigurerAdapter{
 	@Override
 	protected void configure(HttpSecurity http) throws Exception {
 		log.info("***************configure http-start********* s********");
-	http.authorizeRequests().mvcMatchers("/").authenticated()
-							.mvcMatchers("/hpst").authenticated()
-							.and().formLogin().and().httpBasic();
-//			.and()
-//			.authorizeRequests()
-//			.mvcMatchers("/").permitAll()
-//			.mvcMatchers("/")			
-//			;
-//		http.authorizeRequests().and().formLogin().permitAll();
-//		.mvcMatchers("/").hasRole("ADMIN")
-//		.mvcMatchers("/root").hasRole("ADMIN")
-//		.mvcMatchers("/a").access("hasRole('ADMIN')")
+		http.formLogin().and().httpBasic();
+		http.authorizeRequests()
+		.anyRequest().authenticated()
+		.mvcMatchers("/accessDenied").permitAll();
+		
 		
 	log.info("***************configure http- end*****************");
 	}
@@ -181,12 +183,44 @@ class CustomUser implements UserDetails{
 }
 
 @RestController
+@EnableGlobalMethodSecurity(prePostEnabled = true)
 class AppController{
 	
+	@PreAuthorize("hasRole('ROLE_ADMIN') and hasRole('ROLE_USER')")
 	@GetMapping("/index")
 	public String getHome(Principal principle){
-		return "indexs"+principle.getName();
+		return "Welcome to Home Page ::"+principle.getName().toUpperCase();
+	}
+	
+	@PreAuthorize("hasRole('ROLE_ADMIN')")
+	@GetMapping("/hpst")
+	public String getHpst(Principal principle){
+		return "Welcomme Admin::"+principle.getName().toUpperCase();
+	}
+	
+	@GetMapping("/accessDenied")
+	public String accessDenied(Principal principle){
+		return "You are not authorized to view this page "+principle.getName();
 	}
 }
 
+
+@ControllerAdvice
+ class CustomExceptionHandler {
+	
+	
+	@ExceptionHandler(Exception.class)
+	public String handleException(HttpRequest request , Exception expt) {
+		return expt.getMessage();
+		
+	}
+	
+	@ExceptionHandler(AccessDeniedException.class)
+	public void AccessDeniedException(HttpServletRequest request ,HttpServletResponse response, Exception expt) throws IOException {
+		response.sendRedirect("/accessDenied");
+		
+	}
+	
+	
+}
 
