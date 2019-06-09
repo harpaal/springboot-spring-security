@@ -76,6 +76,7 @@ class SecurityConfig extends WebSecurityConfigurerAdapter{
 	@Bean
 	public UserDetailsService inMemoryUserDetailManager() {
 		return new InMemoryUserDetailsManager(customUserDetailService.getUserDetails());
+		
 	}
 
 	@Override
@@ -85,6 +86,8 @@ class SecurityConfig extends WebSecurityConfigurerAdapter{
 		http.authorizeRequests()
 		.anyRequest().authenticated()
 		.mvcMatchers("/accessDenied").permitAll();
+		http.logout().logoutUrl("/logout").logoutSuccessUrl("/logout-success")
+		.permitAll();
 		
 		
 	log.info("***************configure http- end*****************");
@@ -201,6 +204,11 @@ class AppController{
 	@GetMapping("/accessDenied")
 	public String accessDenied(Principal principle){
 		return "You are not authorized to view this page "+principle.getName();
+	}
+	
+	@GetMapping("/logout-success")
+	String logout() {
+		return "logout";
 	}
 }
 
