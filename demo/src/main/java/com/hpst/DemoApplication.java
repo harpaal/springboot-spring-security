@@ -14,6 +14,7 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
@@ -55,7 +56,10 @@ public class DemoApplication {
 @Slf4j
 @EnableWebSecurity
 class SecurityConfig extends WebSecurityConfigurerAdapter{
-	
+
+	@Value("${spring.profiles.active}")
+	private String activeProfile;
+
 	@Autowired
 	private CustomUserDetailService customUserDetailService;
 	
@@ -73,6 +77,14 @@ class SecurityConfig extends WebSecurityConfigurerAdapter{
 	}
 
 	
+	private void disableSecurityForH2(HttpSecurity http) throws Exception {
+		if (activeProfile.trim().equalsIgnoreCase("test")) {
+			http.csrf().disable();
+			http.headers().frameOptions().disable();
+
+		}
+	}
+	
 	@Bean
 	public UserDetailsService inMemoryUserDetailManager() {
 		return new InMemoryUserDetailsManager(customUserDetailService.getUserDetails());
@@ -85,15 +97,19 @@ class SecurityConfig extends WebSecurityConfigurerAdapter{
 		http.formLogin().and().httpBasic();
 		http.authorizeRequests()
 		.anyRequest().authenticated()
-		.mvcMatchers("/accessDenied").permitAll();
+		.and().authorizeRequests().mvcMatchers("/accessDenied").permitAll();
+		
+		//only for testing
+		disableSecurityForH2(http);
+        
 		http.logout().logoutUrl("/logout").logoutSuccessUrl("/logout-success")
 		.permitAll();
-		
+		  
 		
 	log.info("***************configure http- end*****************");
 	}
 	
-	
+		
 	@Override
 	public void configure(WebSecurity web) throws Exception {
 		
@@ -101,6 +117,8 @@ class SecurityConfig extends WebSecurityConfigurerAdapter{
 		log.info("***************configure web -end*****************");
 	}
 	
+
+
 
 
 }
